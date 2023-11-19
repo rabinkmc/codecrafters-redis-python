@@ -7,7 +7,7 @@ def handle_request(sock):
         print(raw_data.decode())
         data = raw_data.decode().strip("\r\n").split("\r\n")
         print(data)
-        if len(data) == 5 and data[2] == "ECHO":
+        if len(data) == 5 and data[2].upper() == "ECHO":
             response = f"+{data[-1]}\r\n"
             sock.send(response.encode())
         else:
