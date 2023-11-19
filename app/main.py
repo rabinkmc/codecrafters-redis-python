@@ -1,15 +1,14 @@
-# Uncomment this to pass the first stage
-# import socket
+import socket
 
 
 def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
+    print("Initializing redis server:")
 
-    # Uncomment this to pass the first stage
-    #
-    # server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
-    # server_socket.accept() # wait for client
+    server_socket = socket.create_server(("localhost", 6379), reuse_port=True)
+    sock, _ = server_socket.accept()
+    sock.recv(1024)
+    sock.send(b"+PONG\r\n")
+    sock.close()
 
 
 if __name__ == "__main__":
