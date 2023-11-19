@@ -1,11 +1,17 @@
 import socket
 from threading import Thread
-import time
 
 
 def handle_request(sock):
-    while sock.recv(1024):
-        sock.send(b"+PONG\r\n")
+    while raw_data := sock.recv(1024):
+        print(raw_data.decode())
+        data = raw_data.decode().strip("\r\n").split("\r\n")
+        print(data)
+        if len(data) == 5 and data[2] == "ECHO":
+            response = f"+{data[-1]}\r\n"
+            sock.send(response.encode())
+        else:
+            sock.send(b"+PONG\r\n")
     sock.close()
 
 
