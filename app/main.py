@@ -10,31 +10,23 @@ database = {}
 BUFFER_SIZE = 1024
 
 
-def get_without_rdb(sock, key):
-    if key not in database:
+def handle_get(sock, key, rdb=None):
+    redis_data = database
+    if rdb:
+        redis_data = rdb.key_values
+    if key not in redis_data:
         response = "$-1\r\n"
         sock.send(response.encode())
         return
-    value, ttl = database[key]
+    value, ttl = redis_data[key]
+    value = str(value)
     if ttl and ttl < datetime.now():
-        del database[key]
+        del redis_data[key]
         response = "$-1\r\n"
         sock.send(response.encode())
     else:
         response = f"${len(value)}\r\n{value}\r\n"
         sock.send(response.encode())
-
-
-def get_with_rdb(sock, rdb, key):
-    database = rdb.key_values
-    print(database)
-    if key not in database:
-        response = "$-1\r\n"
-        sock.send(response.encode())
-        return
-    value = str(database[key])
-    response = f"${len(value)}\r\n{value}\r\n"
-    sock.send(response.encode())
 
 
 def handle_request(sock):
@@ -63,9 +55,9 @@ def handle_request(sock):
             if "dir" in database and "dbfilename" in database:
                 path = Path(database["dir"]) / database["dbfilename"]
                 rdb_parser = RDBParser(path)
-                get_with_rdb(sock, rdb_parser, key)
+                handle_get(sock, key, rdb_parser)
             else:
-                get_without_rdb(sock, key)
+                handle_get(sock, key)
         elif "config" in data and "get" in data:
             key = data[-1]
             sock.send(get_arr(key, database[key]).encode())

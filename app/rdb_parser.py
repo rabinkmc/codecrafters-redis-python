@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class RDBParser:
     def __init__(self, path):
         fp = open(path, "rb")
@@ -21,6 +24,9 @@ class RDBParser:
             first_byte = encoding_bits & 0b00111111
             next_byte = int(fp.read(1)[0])
             len = (first_byte << 8) | next_byte
+            import ipdb
+
+            ipdb.set_trace()
             return fp.read(len).decode()
         elif encoding_bits == 2:
             len = int.from_bytes(fp.read(4), byteorder="big")
@@ -63,8 +69,17 @@ class RDBParser:
     def get_key_value_dict(self, fp):
         map = {}
         while fp.peek(1)[:1] != b"\xff":
-            fp.read(1)
+            expire_time = None
+            if fp.peek(1)[:1] == b"\xfc":
+                fp.read(1)
+                expiry = int.from_bytes(fp.read(8), byteorder="little")
+                expire_time = datetime.fromtimestamp(expiry / 1000)
+            elif fp.peek(1)[:1] == b"\xfd":
+                fp.read(1)
+                expiry = int.from_bytes(fp.read(4), byteorder="little")
+                expire_time = datetime.fromtimestamp(expiry)
+            value_type = fp.read(1)
             key = self.get_encoded_string(fp)
-            value = self.get_encoded_string(fp)
+            value = self.get_encoded_string(fp), expire_time
             map[key] = value
         return map
