@@ -2,17 +2,53 @@ import socket
 from threading import Thread
 from datetime import datetime, timedelta
 import argparse
+from app.rdb_parser import RDBParser
+from pathlib import Path
 
 
 database = {}
 BUFFER_SIZE = 1024
 
 
+def get_without_rdb(sock, key):
+    if key not in database:
+        response = "$-1\r\n"
+        sock.send(response.encode())
+        return
+    value, ttl = database[key]
+    if ttl and ttl < datetime.now():
+        del database[key]
+        response = "$-1\r\n"
+        sock.send(response.encode())
+    else:
+        response = f"${len(value)}\r\n{value}\r\n"
+        sock.send(response.encode())
+
+
+def get_with_rdb(sock, rdb, key):
+    database = rdb.key_values
+    print(database)
+    if key not in database:
+        response = "$-1\r\n"
+        sock.send(response.encode())
+        return
+    value = str(database[key])
+    response = f"${len(value)}\r\n{value}\r\n"
+    sock.send(response.encode())
+
+
 def handle_request(sock):
     while raw_data := sock.recv(BUFFER_SIZE):
         data = raw_data.decode().strip("\r\n").split("\r\n")
+        print(data)
         if b"ping" in raw_data:
             sock.send(b"+PONG\r\n")
+        elif len(data) == 5 and data[2].lower() == "keys" and data[4] == "*":
+            path = Path(database["dir"]) / database["dbfilename"]
+            rdb_parser = RDBParser(path)
+            keys = list(rdb_parser.key_values.keys())
+            sock.send(get_arr(*keys).encode())
+
         elif len(data) >= 7 and data[2].lower() == "set":
             key = data[4]
             value = data[6]
@@ -24,18 +60,12 @@ def handle_request(sock):
             sock.send(b"+OK\r\n")
         elif len(data) == 5 and data[2].lower() == "get":
             key = data[-1]
-            if key not in database:
-                response = "$-1\r\n"
-                sock.send(response.encode())
+            if "dir" in database and "dbfilename" in database:
+                path = Path(database["dir"]) / database["dbfilename"]
+                rdb_parser = RDBParser(path)
+                get_with_rdb(sock, rdb_parser, key)
             else:
-                value, ttl = database[key]
-                if ttl and ttl < datetime.now():
-                    del database[key]
-                    response = "$-1\r\n"
-                    sock.send(response.encode())
-                else:
-                    response = f"${len(value)}\r\n{value}\r\n"
-                    sock.send(response.encode())
+                get_without_rdb(sock, key)
         elif "config" in data and "get" in data:
             key = data[-1]
             sock.send(get_arr(key, database[key]).encode())
