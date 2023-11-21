@@ -32,7 +32,6 @@ def handle_get(sock, key, rdb=None):
 def handle_request(sock):
     while raw_data := sock.recv(BUFFER_SIZE):
         data = raw_data.decode().strip("\r\n").split("\r\n")
-        print(data)
         if b"ping" in raw_data:
             sock.send(b"+PONG\r\n")
         elif len(data) == 5 and data[2].lower() == "keys" and data[4] == "*":
