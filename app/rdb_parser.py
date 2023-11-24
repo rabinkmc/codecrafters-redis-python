@@ -24,9 +24,6 @@ class RDBParser:
             first_byte = encoding_bits & 0b00111111
             next_byte = int(fp.read(1)[0])
             len = (first_byte << 8) | next_byte
-            import ipdb
-
-            ipdb.set_trace()
             return fp.read(len).decode()
         elif encoding_bits == 2:
             len = int.from_bytes(fp.read(4), byteorder="big")
